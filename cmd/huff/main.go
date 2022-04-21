@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -29,14 +31,18 @@ const (
 	DecompressMode
 )
 
-func countLetters(file *os.File) {
-	ch := make([]byte, 1)
+func countLetters(file io.ByteReader) {
+	for {
+		ch, err := file.ReadByte()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return
+			}
+			// TODO: Handle error.
+		}
 
-	n, _ := file.Read(ch)
-	for n == 1 {
-		letterInfo[ch[0]].freq += 1
-		letterInfo[ch[0]].char = ch[0]
-		n, _ = file.Read(ch)
+		letterInfo[ch].freq += 1
+		letterInfo[ch].char = ch
 	}
 }
 
@@ -87,15 +93,15 @@ func readBit(c, i byte) byte {
 	return (c & ((1 << 7) >> i)) >> (7 - i)
 }
 
-func checkWrite(f_out *os.File, c, c_index *byte) {
+func checkWrite(f_out io.ByteWriter, c, c_index *byte) {
 	if *c_index >= 8 {
-		f_out.Write([]byte{*c})
+		f_out.WriteByte(*c)
 		*c_index = 0
 		*c = 0
 	}
 }
 
-func writeTree(head *node, f_out *os.File, c, c_index *byte) {
+func writeTree(head *node, f_out io.ByteWriter, c, c_index *byte) {
 	for p := 0; p < 2; p++ {
 		checkWrite(f_out, c, c_index)
 
@@ -115,18 +121,23 @@ func writeTree(head *node, f_out *os.File, c, c_index *byte) {
 	}
 }
 
-func compress(head *node, f_in, f_out *os.File, amount int) {
+func compress(head *node, f_in io.ByteReader, f_out io.ByteWriter, amount int) {
 	var codes [256][24]int8
 	var temp_codes [24]int8
 	var c, c_index byte
-	ch_in := make([]byte, 1)
 
 	writeTree(head, f_out, &c, &c_index)
 	initCodes(head, &codes, &temp_codes, 0)
 
-	read_size, _ := f_in.Read(ch_in)
-	for read_size == 1 {
-		tmp := uint8(ch_in[0])
+	for {
+		ch_in, err := f_in.ReadByte()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			// TODO: Handle errors.
+		}
+		tmp := uint8(ch_in)
 		for i := 0; codes[tmp][i] != -1; i++ {
 			checkWrite(f_out, &c, &c_index)
 
@@ -134,30 +145,31 @@ func compress(head *node, f_in, f_out *os.File, amount int) {
 			c_index++
 		}
 		checkWrite(f_out, &c, &c_index)
-		read_size, _ = f_in.Read(ch_in)
 	}
 
 	if c_index > 0 {
-		f_out.Write([]byte{c})
+		f_out.WriteByte(c)
 	}
 }
 
-func decompress(head *node, f_in, f_out *os.File, c, c_index *byte) {
+func decompress(head *node, f_in io.ByteReader, f_out io.ByteWriter, c, c_index *byte) {
 	parse_node := head
-	n := 1
 
-	if *c_index >= 8 {
-		ch := make([]byte, 1)
-		n, _ = f_in.Read(ch)
-		*c = ch[0]
+	for *c_index >= 8 {
+		ch, err := f_in.ReadByte()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return
+			}
+			// TODO: Handle errors.
+		}
+		*c = ch
 		*c_index = 0
-	}
 
-	for n == 1 {
 		next_step := readBit(*c, *c_index)
 
 		if parse_node.isLeaf[next_step] == true {
-			f_out.Write([]byte{parse_node.char[next_step]})
+			f_out.WriteByte(parse_node.char[next_step])
 			parse_node = head
 
 		} else {
@@ -165,56 +177,45 @@ func decompress(head *node, f_in, f_out *os.File, c, c_index *byte) {
 		}
 
 		*c_index++
-		if *c_index >= 8 {
-			ch := make([]byte, 1)
-
-			n, _ = f_in.Read(ch)
-
-			*c = ch[0]
-			*c_index = 0
-		}
 	}
 }
 
-func readTree(f_in *os.File, c, c_index *byte) *node {
+func readTree(f_in io.ByteReader, c, c_index *byte) *node {
 	var node node
 
 	for p := 0; p < 2; p++ {
 		if *c_index >= 8 {
-			ch := make([]byte, 1)
-
-			n, err := f_in.Read(ch)
-			if n != 1 {
+			ch, err := f_in.ReadByte()
+			if err != nil {
 				log.Fatal(err)
 			}
 
-			*c = ch[0]
+			*c = ch
 			*c_index = 0
 		}
 
-		if readBit(*c, *c_index) == 1 {
-			node.isLeaf[p] = true
-			node.next[p] = nil
-			*c_index++
-			for i := byte(0); i < 8; i++ {
-				if *c_index >= 8 {
-					ch := make([]byte, 1)
-
-					n, err := f_in.Read(ch)
-					if n != 1 {
-						log.Fatal(err)
-					}
-					*c = ch[0]
-					*c_index = 0
-				}
-
-				node.char[p] |= writeBit(readBit(*c, *c_index), i) //copy bits over
-				*c_index++
-			}
-		} else {
+		if readBit(*c, *c_index) != 1 {
 			*c_index++
 			node.isLeaf[p] = false
 			node.next[p] = readTree(f_in, c, c_index)
+			continue
+		}
+
+		node.isLeaf[p] = true
+		node.next[p] = nil
+		*c_index++
+		for i := byte(0); i < 8; i++ {
+			if *c_index >= 8 {
+				ch, err := f_in.ReadByte()
+				if err != nil {
+					log.Fatal(err)
+				}
+				*c = ch
+				*c_index = 0
+			}
+
+			node.char[p] |= writeBit(readBit(*c, *c_index), i) //copy bits over
+			*c_index++
 		}
 	}
 
@@ -323,7 +324,7 @@ func main() {
 	var print_tree_bool bool
 	args := os.Args[1:]
 
-	for i := 0; i < len(args); i++ {
+	for i := range args {
 		switch args[i] {
 		case "-c":
 			mode = CompressMode
@@ -346,28 +347,32 @@ func main() {
 
 	f_in := os.Stdin
 	if f_in_name != "" {
-		var err error
-		f_in, err = os.Open(f_in_name)
+		f, err := os.Open(f_in_name)
 		if err != nil {
 			log.Fatal(err)
 		}
-		defer f_in.Close()
+		defer f.Close()
+		f_in = f
 	}
+	r := bufio.NewReader(f_in)
 
 	f_out := os.Stdout
 	if f_out_name != "" {
-		var err error
-		f_out, err = os.Create(f_out_name)
+		f, err := os.Create(f_out_name)
 		if err != nil {
 			log.Fatal(err)
 		}
-		defer f_out.Close()
+		defer f.Close()
+		f_out = f
 	}
+	w := bufio.NewWriter(f_out)
+	defer w.Flush()
 
 	switch mode {
 	case CompressMode:
-		countLetters(f_in)
-		f_in.Seek(0, io.SeekStart)
+		countLetters(r)
+		f_in.Seek(0, io.SeekStart) // BUG: This won't work with stdin.
+		r = bufio.NewReader(f_in)  // Discard existing buffer.
 
 		start := sortLetters()
 		head := createTree(start)
@@ -376,17 +381,15 @@ func main() {
 			printTree(head, 1, 0)
 		}
 
-		compress(head, f_in, f_out, start)
+		compress(head, r, w, start)
 	case DecompressMode:
 		var c, c_index byte = 0, 8
-		head := readTree(f_in, &c, &c_index)
+		head := readTree(r, &c, &c_index)
 
 		if print_tree_bool {
 			printTree(head, 1, 0)
 		}
 
-		decompress(head, f_in, f_out, &c, &c_index)
-	default:
-		return
+		decompress(head, r, w, &c, &c_index)
 	}
 }
