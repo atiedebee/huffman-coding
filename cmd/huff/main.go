@@ -319,7 +319,7 @@ func createTree(start int) *node {
 }
 
 func main() {
-	var f_in_name, f_out_name *string
+	var f_in_name, f_out_name string
 	mode := CompressMode
 	var print_tree_bool bool
 	args := os.Args[1:]
@@ -335,20 +335,20 @@ func main() {
 			if i+1 >= len(args) {
 				log.Fatal("-o must be followed by an output file")
 			}
-			f_out_name = &args[i+1]
+			f_out_name = args[i+1]
 			i++
 
 		case "-p":
 			print_tree_bool = true
 		default:
-			f_in_name = &args[i]
+			f_in_name = args[i]
 		}
 	}
 
 	f_in := os.Stdin
-	if f_in_name != nil {
+	if f_in_name != "" {
 		var err error
-		f_in, err = os.Open(*f_in_name)
+		f_in, err = os.Open(f_in_name)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -356,9 +356,9 @@ func main() {
 	}
 
 	f_out := os.Stdout
-	if f_out_name != nil {
+	if f_out_name != "" {
 		var err error
-		f_out, err = os.Create(*f_out_name)
+		f_out, err = os.Create(f_out_name)
 		if err != nil {
 			log.Fatal(err)
 		}
