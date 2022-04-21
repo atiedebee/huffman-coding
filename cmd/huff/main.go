@@ -22,11 +22,11 @@ type node struct {
 
 var letterInfo [256]letters
 
-type MODE uint8
+type Mode uint8
 
 const (
-	COMPRESS MODE = iota
-	DECOMPRESS
+	CompressMode Mode = iota
+	DecompressMode
 )
 
 func countLetters(file *os.File) {
@@ -59,13 +59,6 @@ func sortLetters() int {
 	}
 
 	return i - 1
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 func initCodes(head *node, codes *[256][24]int8, temp_codes *[24]int8, depth int) {
@@ -326,18 +319,17 @@ func createTree(start int) *node {
 }
 
 func main() {
-	var f_in_name, f_out_name *string = nil, nil
-	var mode MODE = COMPRESS
-	var err error = nil
-	var print_tree_bool bool = false
+	var f_in_name, f_out_name *string
+	mode := CompressMode
+	var print_tree_bool bool
 	args := os.Args[1:]
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-c":
-			mode = COMPRESS
+			mode = CompressMode
 		case "-d":
-			mode = DECOMPRESS
+			mode = DecompressMode
 
 		case "-o":
 			if i+1 >= len(args) {
@@ -355,7 +347,7 @@ func main() {
 
 	f_in := os.Stdin
 	if f_in_name != nil {
-		f_in, err = os.Open(*f_in_name)
+		f_in, err := os.Open(*f_in_name)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -364,7 +356,7 @@ func main() {
 
 	f_out := os.Stdout
 	if f_out_name != nil {
-		f_out, err = os.Create(*f_out_name)
+		f_out, err := os.Create(*f_out_name)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -372,7 +364,7 @@ func main() {
 	}
 
 	switch mode {
-	case COMPRESS:
+	case CompressMode:
 		countLetters(f_in)
 		f_in.Seek(0, io.SeekStart)
 
@@ -384,7 +376,7 @@ func main() {
 		}
 
 		compress(head, f_in, f_out, start)
-	case DECOMPRESS:
+	case DecompressMode:
 		var c, c_index byte = 0, 8
 		head := readTree(f_in, &c, &c_index)
 
