@@ -155,28 +155,28 @@ func compress(head *node, f_in io.ByteReader, f_out io.ByteWriter, amount int) {
 func decompress(head *node, f_in io.ByteReader, f_out io.ByteWriter, c, c_index *byte) {
 	parse_node := head
 
-	for *c_index >= 8 {
-		ch, err := f_in.ReadByte()
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return
+	for {
+		if *c_index >= 8 {
+			ch, err := f_in.ReadByte()
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					return
+				}
+				// TODO: Handle errors.
 			}
-			// TODO: Handle errors.
+			*c = ch
+			*c_index = 0
 		}
-		*c = ch
-		*c_index = 0
 
 		next_step := readBit(*c, *c_index)
+		*c_index++
 
 		if parse_node.isLeaf[next_step] == true {
 			f_out.WriteByte(parse_node.char[next_step])
 			parse_node = head
-
 		} else {
 			parse_node = parse_node.next[next_step]
 		}
-
-		*c_index++
 	}
 }
 
