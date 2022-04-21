@@ -177,7 +177,7 @@ func decompress(head *node, f_in, f_out *os.File, c, c_index *byte) {
 }
 
 func readTree(f_in *os.File, c, c_index *byte) *node {
-	node := new(node)
+	var node node
 
 	for p := 0; p < 2; p++ {
 		if *c_index >= 8 {
@@ -218,7 +218,7 @@ func readTree(f_in *os.File, c, c_index *byte) *node {
 		}
 	}
 
-	return node
+	return &node
 }
 
 func padd(depth int) {
@@ -280,13 +280,12 @@ func sortTree(nodes *[]*node, length int) {
 }
 
 func createTree(start int) *node {
-	var temp *node
 	nodes := make([](*node), 256)
 
 	for i := start; i > 0; i-- {
 		j := i - 1
 
-		temp = new(node)
+		var temp node
 		temp.sum = 0
 
 		if letterInfo[i].freq == -1 {
@@ -308,7 +307,7 @@ func createTree(start int) *node {
 			temp.char[1] = letterInfo[j].char
 			temp.isLeaf[1] = true
 		}
-		nodes[j] = temp
+		nodes[j] = &temp
 		letterInfo[i].freq = -1
 		letterInfo[j].freq = -1
 
