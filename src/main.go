@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
-    "io"
 )
 
 type letters struct {
@@ -70,20 +70,20 @@ func min(a, b int) int {
 
 func init_codes(head *node, codes *[256][24]int8, temp_codes *[24]int8, depth int) {
 	for p := int8(0); p < 2; p++ {
-        if head.isLeaf[p] {
-            temp_codes[depth] = p
-            temp_codes[depth+1] = -1
-            i := 0
-            for i = 0; temp_codes[i] != -1; i++ {
-                codes[ uint8(head.char[p]) ][i] = temp_codes[i]
-            }
-            codes[ uint8(head.char[p]) ][i] = -1
-            
-        } else {
-            temp_codes[depth] = p
-            init_codes(head.next[p], codes, temp_codes, depth+1)
-        }
-    }
+		if head.isLeaf[p] {
+			temp_codes[depth] = p
+			temp_codes[depth+1] = -1
+			i := 0
+			for i = 0; temp_codes[i] != -1; i++ {
+				codes[uint8(head.char[p])][i] = temp_codes[i]
+			}
+			codes[uint8(head.char[p])][i] = -1
+
+		} else {
+			temp_codes[depth] = p
+			init_codes(head.next[p], codes, temp_codes, depth+1)
+		}
+	}
 }
 
 func write_bit(b, i byte) byte {
@@ -95,28 +95,28 @@ func read_bit(c, i byte) byte {
 }
 
 func check_write(f_out *os.File, c, c_index *byte) {
-    
-    if *c_index >= 8 {
-        f_out.Write([]byte{*c})
-        *c_index = 0
-        *c = 0
-    }
+
+	if *c_index >= 8 {
+		f_out.Write([]byte{*c})
+		*c_index = 0
+		*c = 0
+	}
 }
 
 func write_tree(head *node, f_out *os.File, c, c_index *byte) {
-	
-    for p := 0; p < 2; p++ {
-        check_write(f_out, c, c_index)
-        
+
+	for p := 0; p < 2; p++ {
+		check_write(f_out, c, c_index)
+
 		if head.isLeaf[p] == true {
 			*c |= write_bit(1, *c_index)
 			*c_index++
 			for i := byte(0); i < 8; i++ {
-                check_write(f_out, c, c_index)
+				check_write(f_out, c, c_index)
 				*c |= write_bit(read_bit(head.char[p], i), *c_index)
 				*c_index++
 			}
-            check_write(f_out, c, c_index)
+			check_write(f_out, c, c_index)
 		} else {
 			*c_index++ //leaves the bit we were at at 0
 			write_tree(head.next[p], f_out, c, c_index)
@@ -129,43 +129,43 @@ func compress(head *node, f_in, f_out *os.File, amount int) {
 	var temp_codes [24]int8
 	var c, c_index byte = 0, 0
 	ch_in := make([]byte, 1)
-    
-    write_tree(head, f_out, &c, &c_index)
-    init_codes(head, &codes, &temp_codes, 0)
-    
+
+	write_tree(head, f_out, &c, &c_index)
+	init_codes(head, &codes, &temp_codes, 0)
+
 	read_size, _ := f_in.Read(ch_in)
 	for read_size == 1 {
-        tmp := uint8(ch_in[0])
-        for i := 0; codes[tmp][i] != -1; i++ {
-            check_write(f_out, &c, &c_index)
-            
-            c |= write_bit(byte(codes[tmp][i]), c_index)
+		tmp := uint8(ch_in[0])
+		for i := 0; codes[tmp][i] != -1; i++ {
+			check_write(f_out, &c, &c_index)
+
+			c |= write_bit(byte(codes[tmp][i]), c_index)
 			c_index++
 		}
-        check_write(f_out, &c, &c_index)
+		check_write(f_out, &c, &c_index)
 		read_size, _ = f_in.Read(ch_in)
 	}
-	
+
 	if c_index > 0 {
-        f_out.Write([]byte{c})
-    }
+		f_out.Write([]byte{c})
+	}
 }
 
 func decompress(head *node, f_in, f_out *os.File, c, c_index *byte) {
 	var parse_node = head
 	var n int = 1
-    
-    if *c_index >= 8 {
-        ch := make([]byte, 1)
-        n, _ = f_in.Read(ch)
-        *c = ch[0]
-        *c_index = 0
-    }
-    
+
+	if *c_index >= 8 {
+		ch := make([]byte, 1)
+		n, _ = f_in.Read(ch)
+		*c = ch[0]
+		*c_index = 0
+	}
+
 	for n == 1 {
-        next_step := read_bit(*c, *c_index)
-        
-        if parse_node.isLeaf[next_step] == true {
+		next_step := read_bit(*c, *c_index)
+
+		if parse_node.isLeaf[next_step] == true {
 			f_out.Write([]byte{parse_node.char[next_step]})
 			parse_node = head
 
@@ -188,23 +188,22 @@ func decompress(head *node, f_in, f_out *os.File, c, c_index *byte) {
 func read_tree(f_in *os.File, c, c_index *byte) *node {
 	node := new(node)
 
-
 	for p := 0; p < 2; p++ {
-        
-        if *c_index >= 8 {
-            ch := make([]byte, 1)
 
-            n, err := f_in.Read(ch)
-            if n != 1 {
-                log.Fatal(err)
-            }
-            
-            *c = ch[0]
-            *c_index = 0
-        }
-        
+		if *c_index >= 8 {
+			ch := make([]byte, 1)
+
+			n, err := f_in.Read(ch)
+			if n != 1 {
+				log.Fatal(err)
+			}
+
+			*c = ch[0]
+			*c_index = 0
+		}
+
 		if read_bit(*c, *c_index) == 1 {
-            node.isLeaf[p] = true
+			node.isLeaf[p] = true
 			node.next[p] = nil
 			*c_index++
 			for i := byte(0); i < 8; i++ {
@@ -223,7 +222,7 @@ func read_tree(f_in *os.File, c, c_index *byte) *node {
 				*c_index++
 			}
 		} else {
-            *c_index++
+			*c_index++
 			node.isLeaf[p] = false
 			node.next[p] = read_tree(f_in, c, c_index)
 		}
@@ -335,28 +334,28 @@ func main() {
 	var f_in_name, f_out_name *string = nil, nil
 	var mode MODE = COMPRESS
 	var err error = nil
-    var print_tree_bool bool = false
+	var print_tree_bool bool = false
 	args := os.Args[1:]
-    
+
 	for i := 0; i < len(args); i++ {
-        switch args[i] {
-            case "-c":
-                mode = COMPRESS
-            case "-d":
-                mode = DECOMPRESS
-            
-            case "-o":
-                if i+1 >= len(args) {
-                    log.Fatal("-o must be followed by an output file")
-                }
-                f_out_name = &args[i+1]
-                i++
-            
-            case "-p":
-                print_tree_bool = true
-            default:
-                f_in_name = &args[i]
-        }
+		switch args[i] {
+		case "-c":
+			mode = COMPRESS
+		case "-d":
+			mode = DECOMPRESS
+
+		case "-o":
+			if i+1 >= len(args) {
+				log.Fatal("-o must be followed by an output file")
+			}
+			f_out_name = &args[i+1]
+			i++
+
+		case "-p":
+			print_tree_bool = true
+		default:
+			f_in_name = &args[i]
+		}
 	}
 
 	f_in := os.Stdin
@@ -381,24 +380,24 @@ func main() {
 	case COMPRESS:
 		count_letters(f_in)
 		f_in.Seek(0, io.SeekStart)
-        
-        start := sort_letters()
+
+		start := sort_letters()
 		head := create_tree(start)
-		
-        if print_tree_bool {
-            print_tree(head, 1, 0)
-        }
-        
+
+		if print_tree_bool {
+			print_tree(head, 1, 0)
+		}
+
 		compress(head, f_in, f_out, start)
 	case DECOMPRESS:
 		var c, c_index byte = 0, 8
 		head := read_tree(f_in, &c, &c_index)
-		
-        if print_tree_bool {
-            print_tree(head, 1, 0)
-        }
-        
-        decompress(head, f_in, f_out, &c, &c_index)
+
+		if print_tree_bool {
+			print_tree(head, 1, 0)
+		}
+
+		decompress(head, f_in, f_out, &c, &c_index)
 	default:
 		return
 	}
