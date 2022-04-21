@@ -118,7 +118,7 @@ func writeTree(head *node, f_out *os.File, c, c_index *byte) {
 func compress(head *node, f_in, f_out *os.File, amount int) {
 	var codes [256][24]int8
 	var temp_codes [24]int8
-	var c, c_index byte = 0, 0
+	var c, c_index byte
 	ch_in := make([]byte, 1)
 
 	writeTree(head, f_out, &c, &c_index)
@@ -143,8 +143,8 @@ func compress(head *node, f_in, f_out *os.File, amount int) {
 }
 
 func decompress(head *node, f_in, f_out *os.File, c, c_index *byte) {
-	var parse_node = head
-	var n int = 1
+	parse_node := head
+	n := 1
 
 	if *c_index >= 8 {
 		ch := make([]byte, 1)
@@ -280,7 +280,7 @@ func sortTree(nodes *[]*node, length int) {
 }
 
 func createTree(start int) *node {
-	var temp *node = nil
+	var temp *node
 	nodes := make([](*node), 256)
 
 	for i := start; i > 0; i-- {
@@ -347,7 +347,8 @@ func main() {
 
 	f_in := os.Stdin
 	if f_in_name != nil {
-		f_in, err := os.Open(*f_in_name)
+		var err error
+		f_in, err = os.Open(*f_in_name)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -356,7 +357,8 @@ func main() {
 
 	f_out := os.Stdout
 	if f_out_name != nil {
-		f_out, err := os.Create(*f_out_name)
+		var err error
+		f_out, err = os.Create(*f_out_name)
 		if err != nil {
 			log.Fatal(err)
 		}
