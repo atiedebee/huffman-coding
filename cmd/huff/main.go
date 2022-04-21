@@ -95,7 +95,6 @@ func read_bit(c, i byte) byte {
 }
 
 func check_write(f_out *os.File, c, c_index *byte) {
-
 	if *c_index >= 8 {
 		f_out.Write([]byte{*c})
 		*c_index = 0
@@ -104,7 +103,6 @@ func check_write(f_out *os.File, c, c_index *byte) {
 }
 
 func write_tree(head *node, f_out *os.File, c, c_index *byte) {
-
 	for p := 0; p < 2; p++ {
 		check_write(f_out, c, c_index)
 
@@ -189,7 +187,6 @@ func read_tree(f_in *os.File, c, c_index *byte) *node {
 	node := new(node)
 
 	for p := 0; p < 2; p++ {
-
 		if *c_index >= 8 {
 			ch := make([]byte, 1)
 
@@ -266,14 +263,12 @@ func print_tree(head *node, depth int, isabove int) {
 
 func sort_tree(nodes *[]*node, length int) {
 	for i := 0; i < length; i++ {
-
 		a := letter_info[i].freq
 		if a == -1 {
 			a = (*nodes)[i].sum + 1
 		}
 
 		for j := i + 1; j < length; j++ {
-
 			b := letter_info[j].freq
 			if b == -1 {
 				b = (*nodes)[j].sum + 1
